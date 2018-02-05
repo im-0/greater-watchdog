@@ -1,0 +1,7 @@
+/antares
+/build/
+/images/
+/include/
+/tmp/
+*.old
+/.config

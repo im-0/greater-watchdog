@@ -1,0 +1,6 @@
+config GWD_STARTUP_SLEEP_MS
+	int "Startup sleep time in milliseconds"
+	default 1000
+	help
+	  Should be >= 0 and <= 60000.
+	  Value of "0" disables sleep on startup.

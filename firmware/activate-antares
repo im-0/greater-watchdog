@@ -1,0 +1,5 @@
+if [ -d ./.antares-submodule ]; then
+    export ANTARES_INSTALL_DIR=$( pwd )/.antares-submodule
+else
+    echo "ERROR: No .antares-submodule in current working directory" >&2
+fi

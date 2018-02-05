@@ -1,0 +1,19 @@
+#!/bin/sh -eu
+
+SLEEP_SECONDS=0.1
+
+bp_serial=$( echo /dev/serial/by-id/usb-Dangerous_Prototypes_Bus_Pirate_* )
+stty --file "${bp_serial}" 115200 \
+        -hupcl crtscts ignbrk -icrnl -ixon -opost -onlcr -isig -icanon \
+	-iexten -echo -echoe -echok -echoctl -echoke time 5
+(
+    set -eu
+
+    echo
+    sleep "${SLEEP_SECONDS}"
+    echo "m"   # "Change mode"
+    sleep "${SLEEP_SECONDS}"
+    echo "11"  # Select "DIO"
+    sleep "${SLEEP_SECONDS}"
+    echo "W"   # "PSU on"
+) >"${bp_serial}"
