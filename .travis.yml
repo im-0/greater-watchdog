@@ -1,0 +1,22 @@
+sudo: required
+
+env:
+  global:
+    - FEDORA_TARBALL_URL=http://mirrors.kernel.org/fedora/releases/27/Docker/x86_64/images/Fedora-Docker-Base-27-1.6.x86_64.tar.xz
+    - FEDORA_TARBALL_SHA256=4b9082788f961ae6798c91f9c31446df1fb0907e3e37e52626e16d977ff5941f
+
+git:
+  submodules:
+    true
+
+before_script:
+  - ./travis-script before_script
+
+script:
+  - ./travis-script script
+
+after_script:
+  - ./travis-script after_script
+
+os:
+  - linux

@@ -1,0 +1,102 @@
+#!/bin/sh -xeu
+
+CURL_OPTS="--connect-timeout 15"
+CHROOT_DIR="${TRAVIS_BUILD_DIR}/.chroot"
+BUILD_DIR="/root/build"
+CHROOT_BUILD_DIR="${CHROOT_DIR}${BUILD_DIR}"
+DOCKER_TAR="${TRAVIS_BUILD_DIR}/.docker.tar"
+DOCKER_UNTAR="${TRAVIS_BUILD_DIR}/.docker.untar"
+
+build_firmware() {
+    (
+        set -xeu
+
+        if [ ! -e "${BUILD_DIR}/firmware/antares" ]; then
+            ln -fsv \
+                    "${BUILD_DIR}/firmware/.antares-submodule" \
+                    "${BUILD_DIR}/firmware/antares"
+        fi
+
+        cd "firmware"
+
+        . ./activate-antares
+        cp "./configs/default" "./.config"
+        yes "" | make oldconfig
+        make
+        fw_image=$( echo "./images"/*.hex )
+
+        set +x
+        echo
+        echo
+        echo
+        echo "Image file: ${fw_image}"
+        echo "—————— ✁ ——————"
+        cat "${fw_image}"
+        echo "—————— ✂ ——————"
+        echo
+        echo
+        echo
+        set -x
+    )
+}
+
+if [ "${1}" = "before_script" ]; then
+    # Download Fedora rootfs tarball for Docker.
+    curl $CURL_OPTS --output "${DOCKER_TAR}" "${FEDORA_TARBALL_URL}"
+    echo "${FEDORA_TARBALL_SHA256} ${DOCKER_TAR}" | sha256sum --check -
+
+    # Unpack metadata and tarball containing real rootfs.
+    mkdir -pv "${DOCKER_UNTAR}"
+    tar -C "${DOCKER_UNTAR}" -vxJf "${DOCKER_TAR}"
+    rm -frv "${DOCKER_TAR}"
+    chroot_tar=$( echo "${DOCKER_UNTAR}"/*/layer.tar )
+
+    # Unpack rootfs into chroot.
+    mkdir -pv "${CHROOT_DIR}"
+    sudo tar -C "${CHROOT_DIR}" -pvxf "${chroot_tar}"
+    rm -frv "${DOCKER_UNTAR}"
+
+    sudo dd if="/etc/resolv.conf" of="${CHROOT_DIR}/etc/resolv.conf"
+    sudo mount -o bind "/proc" "${CHROOT_DIR}/proc"
+    sudo mkdir -pv "${CHROOT_BUILD_DIR}"
+    sudo mount -o bind "${TRAVIS_BUILD_DIR}" "${CHROOT_BUILD_DIR}"
+
+    sudo -E chroot "${CHROOT_DIR}" /bin/sh -l <<EOF
+        cd "${BUILD_DIR}"
+        exec "${BUILD_DIR}/travis-script" "chroot_before_script"
+EOF
+elif [ "${1}" = "chroot_before_script" ]; then
+    dnf clean all
+    dnf makecache -y
+    dnf upgrade -y
+
+    dnf install -y \
+            coreutils \
+            git \
+            make \
+            avr-libc \
+            avr-gcc \
+            avr-binutils \
+            "dnf-command(copr)" \
+            which
+
+    dnf copr enable -y "ivanmironov/kconfig-frontends"
+    dnf makecache -y
+    dnf install -y \
+            kconfig-frontends \
+            kconfig-frontends-devel \
+            kconfig-frontends-curses
+elif [ "${1}" = "script" ]; then
+    sudo -E chroot "${CHROOT_DIR}" /bin/sh -l <<EOF
+        cd "${BUILD_DIR}"
+        exec "${BUILD_DIR}/travis-script" "chroot_script"
+EOF
+elif [ "${1}" = "chroot_script" ]; then
+    build_firmware
+elif [ "${1}" = "after_script" ]; then
+    umount "${CHROOT_BUILD_DIR}"
+    umount "${CHROOT_DIR}/proc"
+else
+    printf "Unknown command: %s\n" "${1}" >&2
+    exit 1
+fi
