@@ -96,8 +96,8 @@ EOF
 elif [ "${1}" = "chroot_script" ]; then
     build_firmware
 elif [ "${1}" = "after_script" ]; then
-    umount "${CHROOT_BUILD_DIR}"
-    umount "${CHROOT_DIR}/proc"
+    sudo umount "${CHROOT_BUILD_DIR}"
+    sudo umount "${CHROOT_DIR}/proc"
 else
     printf "Unknown command: %s\n" "${1}" >&2
     exit 1
