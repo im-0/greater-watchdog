@@ -22,6 +22,8 @@ build_firmware() {
         . ./activate-antares
         cp "./configs/default" "./.config"
         yes "" | make oldconfig
+        sed -Ei "s/^ *#? *CONFIG_NOCOLOR( +.*$|=.*$|$)/CONFIG_NOCOLOR=y/" \
+                "./.config"
         make
         fw_image=$( echo "./images"/*.hex )
 
@@ -30,9 +32,9 @@ build_firmware() {
         echo
         echo
         echo "Image file: ${fw_image}"
-        echo "—————— ✁ ——————"
+        echo "================ CUT HERE ================"
         cat "${fw_image}"
-        echo "—————— ✂ ——————"
+        echo "================ END  CUT ================"
         echo
         echo
         echo
