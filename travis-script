@@ -7,24 +7,30 @@ CHROOT_BUILD_DIR="${CHROOT_DIR}${BUILD_DIR}"
 DOCKER_TAR="${TRAVIS_BUILD_DIR}/.docker.tar"
 DOCKER_UNTAR="${TRAVIS_BUILD_DIR}/.docker.untar"
 
+symlink_antares() {
+    if [ ! -e "${BUILD_DIR}/firmware/antares" ]; then
+        ln -fsv \
+                "${BUILD_DIR}/firmware/.antares-submodule" \
+                "${BUILD_DIR}/firmware/antares"
+    fi
+}
+
 build_firmware() {
     (
         set -xeu
 
-        if [ ! -e "${BUILD_DIR}/firmware/antares" ]; then
-            ln -fsv \
-                    "${BUILD_DIR}/firmware/.antares-submodule" \
-                    "${BUILD_DIR}/firmware/antares"
-        fi
+        symlink_antares
 
         cd "firmware"
-
         . ./activate-antares
+
+        make CONFIG_NOCOLOR=y distclean
+        # Create symlink again (distclean removes it).
+        symlink_antares
+
         cp "./configs/default" "./.config"
-        yes "" | make oldconfig
-        sed -Ei "s/^ *#? *CONFIG_NOCOLOR( +.*$|=.*$|$)/CONFIG_NOCOLOR=y/" \
-                "./.config"
-        make
+        yes "" | make CONFIG_NOCOLOR=y oldconfig
+        make CONFIG_NOCOLOR=y
         fw_image=$( echo "./images"/*.hex )
 
         set +x
@@ -32,9 +38,13 @@ build_firmware() {
         echo
         echo
         echo "Image file: ${fw_image}"
+        echo "SHA256:"
+        sha256sum "${fw_image}"
         echo "================ CUT HERE ================"
         cat "${fw_image}"
         echo "================ END  CUT ================"
+        echo "Use following command to restore original line endings:"
+        echo "    awk 'sub(\"$\", \"\\r\")' dump.hex.lf >dump.hex.crlf"
         echo
         echo
         echo
@@ -49,14 +59,14 @@ if [ "${1}" = "before_script" ]; then
 
     # Unpack metadata and tarball containing real rootfs.
     mkdir -pv "${DOCKER_UNTAR}"
-    tar -C "${DOCKER_UNTAR}" -vxJf "${DOCKER_TAR}"
-    rm -frv "${DOCKER_TAR}"
+    tar -C "${DOCKER_UNTAR}" -xJf "${DOCKER_TAR}"
+    rm -fr "${DOCKER_TAR}"
     chroot_tar=$( echo "${DOCKER_UNTAR}"/*/layer.tar )
 
     # Unpack rootfs into chroot.
     mkdir -pv "${CHROOT_DIR}"
-    sudo tar -C "${CHROOT_DIR}" -pvxf "${chroot_tar}"
-    rm -frv "${DOCKER_UNTAR}"
+    sudo tar -C "${CHROOT_DIR}" -pxf "${chroot_tar}"
+    rm -fr "${DOCKER_UNTAR}"
 
     sudo dd if="/etc/resolv.conf" of="${CHROOT_DIR}/etc/resolv.conf"
     sudo mount -o bind "/proc" "${CHROOT_DIR}/proc"
@@ -69,10 +79,10 @@ if [ "${1}" = "before_script" ]; then
 EOF
 elif [ "${1}" = "chroot_before_script" ]; then
     dnf clean all
-    dnf makecache -y
-    dnf upgrade -y
+    dnf -q makecache -y
+    dnf -q upgrade -y
 
-    dnf install -y \
+    dnf -q install -y \
             coreutils \
             git \
             make \
@@ -83,8 +93,8 @@ elif [ "${1}" = "chroot_before_script" ]; then
             which
 
     dnf copr enable -y "ivanmironov/kconfig-frontends"
-    dnf makecache -y
-    dnf install -y \
+    dnf -q makecache -y
+    dnf -q install -y \
             kconfig-frontends \
             kconfig-frontends-devel \
             kconfig-frontends-curses
