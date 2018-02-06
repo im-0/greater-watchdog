@@ -1,3 +1,4 @@
 [submodule "firmware/.antares-submodule"]
 	path = firmware/.antares-submodule
-	url = https://github.com/nekromant/antares
+	url = https://github.com/im-0/antares
+	branch = minor-improvements
