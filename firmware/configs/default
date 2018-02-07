@@ -183,6 +183,7 @@ CONFIG_TOOLCHAIN_PREFIX="avr-"
 # CONFIG_CC_OPT2 is not set
 # CONFIG_CC_OPT3 is not set
 CONFIG_CC_OPTSZ=y
+CONFIG_GCC_LTO=y
 # CONFIG_GCC_NOSTDLIBS is not set
 # CONFIG_GCC_G is not set
 # CONFIG_GCC_LC is not set
